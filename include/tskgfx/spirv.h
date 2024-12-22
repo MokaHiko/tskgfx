@@ -13,10 +13,13 @@
 
 namespace tsk {
 
-bool parse_spirv(const void* spirv_code, size_t spirv_nbytes, 
-                 VkDescriptorSetLayoutBinding* bindings, uint32_t* n_bindings,
-                 VkPushConstantRange* push_constant_ranges, uint32_t* n_push_constant_ranges);
+bool parse_spirv(const void* spirv_code,
+                 size_t spirv_nbytes,
+                 VkDescriptorSetLayoutBinding* bindings,
+                 uint32_t* n_bindings,
+                 VkPushConstantRange* push_constant_ranges,
+                 uint32_t* n_push_constant_ranges);
 
-} // namespace tsk
+}  // namespace tsk
 
-#endif 
+#endif

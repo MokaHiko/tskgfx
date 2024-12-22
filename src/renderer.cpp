@@ -1,5 +1,3 @@
 #include "tskgfx/renderer.h"
 
-namespace tsk {
-} // namespace tsk
-
+namespace tsk {}  // namespace tsk
