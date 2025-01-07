@@ -16,17 +16,20 @@
 #include <unordered_map>
 
 #ifdef TUSK_DEBUG
-#define VK_CHECK(call)                                                         \
-  do {                                                                         \
-    VkResult result = (call);                                                  \
-    if (result != VK_SUCCESS) {                                                \
-      fprintf(stderr, "Vulkan Error: %d in %s at line %d\n", result, __FILE__, \
-              __LINE__);                                                       \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
+#define VK_CHECK(call)                               \
+  do {                                               \
+    VkResult result = (call);                        \
+    if (result != VK_SUCCESS) {                      \
+      fprintf(stderr,                                \
+              "Vulkan Error: %d in %s at line %d\n", \
+              result,                                \
+              __FILE__,                              \
+              __LINE__);                             \
+      exit(EXIT_FAILURE);                            \
+    }                                                \
   } while (0)
 #else
-#define VK_CHECK(call)
+#define VK_CHECK(call) (call)
 #endif
 
 /// ~ Vulkan helper functions. ~
@@ -118,21 +121,21 @@ class RenderContextVk : public RenderContextI {
   RenderContextVk() = default;
   virtual ~RenderContextVk() = default;
 
-  virtual bool init(const AppConfig &config) override;
+  virtual bool init(const AppConfig& config) override;
   virtual void shutdown() override;
   virtual void frame() override;
 
   virtual void create_texture_2d(TextureHandle handle,
-                                 const TextureInfo &info) override;
+                                 const TextureInfo& info) override;
 
   virtual void update_texture_2d(TextureHandle th,
                                  uint32_t offset,
                                  uint32_t size,
-                                 void *data) override;
+                                 void* data) override;
 
   virtual void destroy(TextureHandle handle) override;
 
-  virtual void create_shader(ShaderHandle handle, const char *path) override;
+  virtual void create_shader(ShaderHandle handle, const char* path) override;
 
   virtual void destroy(ShaderHandle sh) override;
 
@@ -147,28 +150,28 @@ class RenderContextVk : public RenderContextI {
   virtual void create_descriptor(DescriptorHandle dh,
                                  DescriptorType type,
                                  uint16_t num,
-                                 const char *name) override;
+                                 const char* name) override;
 
   virtual void create_uniform_buffer(BufferHandle bh,
                                      uint32_t size,
-                                     void *data) override;
+                                     void* data) override;
   virtual void create_vertex_buffer(BufferHandle bh,
                                     VertexLayoutHandle vlh,
                                     uint32_t size,
-                                    void *data) override;
+                                    void* data) override;
 
   virtual void create_index_buffer(BufferHandle bh,
                                    uint32_t size,
-                                   void *data) override;
+                                   void* data) override;
 
   virtual void update_buffer(BufferHandle handle,
                              uint32_t offset,
                              uint32_t size,
-                             void *data) override;
+                             void* data) override;
 
   virtual void destroy(BufferHandle bh) override;
 
-  virtual void submit(Frame *frame) override;
+  virtual void submit(Frame* frame) override;
 
  private:
   void resize_swapchain();
@@ -181,13 +184,13 @@ class RenderContextVk : public RenderContextI {
   void destroy_swapchain();
 };
 
-RenderContextI *create_render_context() {
+RenderContextI* create_render_context() {
   return new RenderContextVk();
 }
 
 // ~ Render Context
 AppConfig config;
-Frame *render_frame;
+Frame* render_frame;
 RenderContextDirtyFlags dirty = RenderContextDirtyFlags::k_none;
 
 /// ~ Vulkan Render Context ~
@@ -247,7 +250,7 @@ ShaderVk shader_cache[256] = {};
 BufferVk buffer_cache[256] = {};
 
 BufferHandle dirty_buffers[256] = {};
-void *buffer_data_ptrs[256] = {};
+void* buffer_data_ptrs[256] = {};
 int dirty_buffers_head = 0;
 
 BufferVk transient_buffers[256] = {};
@@ -260,7 +263,7 @@ int transient_buffer_destroy_queue_count = 0;
 TextureVk texture_cache[256] = {};
 
 TextureHandle dirty_textures[256] = {};
-void *texture_data_ptrs[256] = {};
+void* texture_data_ptrs[256] = {};
 int dirty_textures_head = 0;
 
 // [Resource] : descriptors.
@@ -303,8 +306,12 @@ void BufferVk::create(VkBufferUsageFlags usage,
         VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
   }
 
-  VK_CHECK(vmaCreateBuffer(allocator, &buffer_create_info, &alloc_create_info,
-                           &buffer, &allocation, nullptr));
+  VK_CHECK(vmaCreateBuffer(allocator,
+                           &buffer_create_info,
+                           &alloc_create_info,
+                           &buffer,
+                           &allocation,
+                           nullptr));
 
   // Update address if requested.
   if ((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ==
@@ -323,7 +330,7 @@ void BufferVk::create(VkBufferUsageFlags usage,
 void BufferVk::update(VkCommandBuffer cmd,
                       uint32_t offset,
                       uint32_t size,
-                      void *data) {
+                      void* data) {
   assert(offset + size <= allocation->GetSize() &&
          "Cannot updated buffer with data. Not enough size!");
 
@@ -335,21 +342,21 @@ void BufferVk::update(VkCommandBuffer cmd,
                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) ==
       (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-    void *mapped_data;
+    void* mapped_data;
     VK_CHECK(vmaMapMemory(allocator, allocation, &mapped_data));
-    memcpy(static_cast<char *>(mapped_data) + offset, data, size);
+    memcpy(static_cast<char*>(mapped_data) + offset, data, size);
     vmaUnmapMemory(allocator, allocation);
 
     return;
   }
 
   // Create transient buffer to be destroyed at end of frame.
-  BufferVk &staging_buffer = transient_buffers[transient_buffer_count++];
+  BufferVk& staging_buffer = transient_buffers[transient_buffer_count++];
   staging_buffer.create(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size, true);
 
-  void *mapped_data;
+  void* mapped_data;
   VK_CHECK(vmaMapMemory(allocator, staging_buffer.allocation, &mapped_data));
-  memcpy(static_cast<char *>(mapped_data) + offset, data, size);
+  memcpy(static_cast<char*>(mapped_data) + offset, data, size);
   vmaUnmapMemory(allocator, staging_buffer.allocation);
 
   // Buffer copy command.
@@ -417,8 +424,8 @@ void TextureVk::create(VkImageUsageFlags usage,
   alloc_info.requiredFlags =
       VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-  VK_CHECK(vmaCreateImage(allocator, &img_info, &alloc_info, &image,
-                          &allocation, nullptr));
+  VK_CHECK(vmaCreateImage(
+      allocator, &img_info, &alloc_info, &image, &allocation, nullptr));
 
   VkImageViewCreateInfo view_info = {};
   view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -441,15 +448,17 @@ void TextureVk::create(VkImageUsageFlags usage,
 void TextureVk::update(VkCommandBuffer cmd,
                        uint32_t offset,
                        uint32_t size,
-                       void *data) {
+                       void* data) {
   assert(offset + size <= allocation->GetSize() &&
          "Cannot updated buffer with data. Not enough size!");
 
-  BufferVk &staging_buffer = transient_buffers[transient_buffer_count++];
+  BufferVk& staging_buffer = transient_buffers[transient_buffer_count++];
   staging_buffer.create(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size, true);
   staging_buffer.update(cmd, offset, size, data);
 
-  transition_image(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT,
+  transition_image(cmd,
+                   image,
+                   VK_IMAGE_ASPECT_COLOR_BIT,
                    VK_IMAGE_LAYOUT_UNDEFINED,
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -465,8 +474,12 @@ void TextureVk::update(VkCommandBuffer cmd,
   image_copy.bufferRowLength = 0;
   image_copy.bufferImageHeight = 0;
 
-  vkCmdCopyBufferToImage(cmd, staging_buffer.buffer, image,
-                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_copy);
+  vkCmdCopyBufferToImage(cmd,
+                         staging_buffer.buffer,
+                         image,
+                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                         1,
+                         &image_copy);
 
   VkMemoryBarrier2KHR buffer_memory_barrier = {};
   buffer_memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2_KHR;
@@ -500,7 +513,7 @@ void TextureVk::destroy() {
   image_view = VK_NULL_HANDLE;
 }
 
-void ShaderVk::create(const char *path) {
+void ShaderVk::create(const char* path) {
   assert(path != nullptr && "Passed invalid path!");
 
   if (const size_t n_bytes = tsk::file_read(path, nullptr, 0)) {
@@ -509,10 +522,14 @@ void ShaderVk::create(const char *path) {
       VkShaderModuleCreateInfo shader_module_info = {};
       shader_module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
       shader_module_info.codeSize = buffer.size();
-      shader_module_info.pCode = reinterpret_cast<uint32_t *>(buffer.data());
+      shader_module_info.pCode = reinterpret_cast<uint32_t*>(buffer.data());
 
-      assert(parse_spirv(buffer.data(), buffer.size(), bindings, &n_bindings,
-                         pc_ranges, &n_pc_ranges));
+      assert(parse_spirv(buffer.data(),
+                         buffer.size(),
+                         bindings,
+                         &n_bindings,
+                         pc_ranges,
+                         &n_pc_ranges));
 
       VK_CHECK(
           vkCreateShaderModule(device, &shader_module_info, nullptr, &module));
@@ -526,7 +543,7 @@ void ShaderVk::destroy() {
   vkDestroyShaderModule(device, module, nullptr);
 }
 
-void ProgramVk::create(const ShaderVk &cs) {
+void ProgramVk::create(const ShaderVk& cs) {
   assert(!cs.valid() && "Cannot create program with invalid compute shader!");
 
   // TODO: Get descriptor layouts and bindings from shader.
@@ -543,8 +560,8 @@ void ProgramVk::create(const ShaderVk &cs) {
   descriptor_set_layout_info.bindingCount = 1;
   descriptor_set_layout_info.pBindings = &binding;
 
-  VK_CHECK(vkCreateDescriptorSetLayout(device, &descriptor_set_layout_info,
-                                       nullptr, &descriptor_set_layout));
+  VK_CHECK(vkCreateDescriptorSetLayout(
+      device, &descriptor_set_layout_info, nullptr, &descriptor_set_layout));
 
   // Create pipeline layout.
   VkPipelineLayoutCreateInfo pipeline_layout_info = {};
@@ -552,8 +569,8 @@ void ProgramVk::create(const ShaderVk &cs) {
   pipeline_layout_info.setLayoutCount = 1;
   pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
 
-  VK_CHECK(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr,
-                                  &pipeline_layout));
+  VK_CHECK(vkCreatePipelineLayout(
+      device, &pipeline_layout_info, nullptr, &pipeline_layout));
 
   // Create pipeline.
   VkPipelineShaderStageCreateInfo shader_stage_info = {};
@@ -574,7 +591,7 @@ void ProgramVk::create(const ShaderVk &cs) {
   pipeline_cache[pipeline_layout] = pipeline;
 }
 
-void ProgramVk::create(const ShaderVk &vs, const ShaderVk &fs) {
+void ProgramVk::create(const ShaderVk& vs, const ShaderVk& fs) {
   assert(!valid() && "Program already intialized!");
   assert(vs.valid() ||
          fs.valid() && "Must have atleast one valid vs/fs shader!");
@@ -619,8 +636,8 @@ void ProgramVk::create(const ShaderVk &vs, const ShaderVk &fs) {
       VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   descriptor_set_layout_info.bindingCount = n_bindings;
   descriptor_set_layout_info.pBindings = bindings;
-  VK_CHECK(vkCreateDescriptorSetLayout(device, &descriptor_set_layout_info,
-                                       nullptr, &descriptor_set_layout));
+  VK_CHECK(vkCreateDescriptorSetLayout(
+      device, &descriptor_set_layout_info, nullptr, &descriptor_set_layout));
 
   // Create pipeline layout.
   VkPipelineLayoutCreateInfo pipeline_layout_info = {};
@@ -631,8 +648,8 @@ void ProgramVk::create(const ShaderVk &vs, const ShaderVk &fs) {
   pipeline_layout_info.pushConstantRangeCount = n_pc_ranges;
   pipeline_layout_info.pPushConstantRanges = pc_ranges;
 
-  VK_CHECK(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr,
-                                  &pipeline_layout));
+  VK_CHECK(vkCreatePipelineLayout(
+      device, &pipeline_layout_info, nullptr, &pipeline_layout));
 
   // Create pipeline.
   VkGraphicsPipelineCreateInfo info = {};
@@ -805,7 +822,7 @@ void ProgramVk::destroy() {
   vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
 }
 
-VkPipeline get_pipeline(const ProgramVk &program) {
+VkPipeline get_pipeline(const ProgramVk& program) {
   auto it = pipeline_cache.find(program.pipeline_layout);
 
   if (it == pipeline_cache.end()) {
@@ -817,9 +834,9 @@ VkPipeline get_pipeline(const ProgramVk &program) {
 
 VkDescriptorSet get_descriptor_set(VkCommandBuffer cmd,
                                    ProgramHandle ph,
-                                   DescriptorHandle *dhs,
+                                   DescriptorHandle* dhs,
                                    uint32_t dh_count) {
-  const ProgramVk &program = program_cache[ph];
+  const ProgramVk& program = program_cache[ph];
   assert(dh_count == program.n_bindings &&
          "[TSKGFX]: Bindings not compatible with program!");
 
@@ -849,7 +866,7 @@ VkDescriptorSet get_descriptor_set(VkCommandBuffer cmd,
   std::vector<VkWriteDescriptorSet> writes(dh_count);
   for (uint32_t i = 0; i < dh_count; i++) {
     const DescriptorHandle dh = dhs[i];
-    const DescriptorInfo &d_info = descriptor_set_info_cache[dh];
+    const DescriptorInfo& d_info = descriptor_set_info_cache[dh];
     assert(d_info.valid() &&
            "[TSKGFX]: Cannot bind descriptor to null reference");
 
@@ -863,7 +880,7 @@ VkDescriptorSet get_descriptor_set(VkCommandBuffer cmd,
     switch (writes[i].descriptorType) {
       case (VK_DESCRIPTOR_TYPE_STORAGE_BUFFER):
       case (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): {
-        const BufferVk &ub = buffer_cache[d_info.resource_handle_index];
+        const BufferVk& ub = buffer_cache[d_info.resource_handle_index];
 
         buffer_infos[i] = {};
         buffer_infos[i].buffer = ub.buffer;
@@ -881,7 +898,7 @@ VkDescriptorSet get_descriptor_set(VkCommandBuffer cmd,
           th = white_rgba_th;
         }
 
-        TextureVk &texture = texture_cache[th];
+        TextureVk& texture = texture_cache[th];
 
         VkSamplerCreateInfo sampler_info = {};
         sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -910,7 +927,9 @@ VkDescriptorSet get_descriptor_set(VkCommandBuffer cmd,
 
         // TODO: Move to texture update.
         // Transition for use.
-        transition_image(cmd, texture.image, VK_IMAGE_ASPECT_COLOR_BIT,
+        transition_image(cmd,
+                         texture.image,
+                         VK_IMAGE_ASPECT_COLOR_BIT,
                          VK_IMAGE_LAYOUT_UNDEFINED,
                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       } break;
@@ -928,15 +947,15 @@ VkDescriptorSet get_descriptor_set(VkCommandBuffer cmd,
     };
   }
 
-  vkUpdateDescriptorSets(device, static_cast<uint32_t>(writes.size()),
-                         writes.data(), 0, nullptr);
+  vkUpdateDescriptorSets(
+      device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
   return ds_set_cache[ds_hash] = ds;
 }
 
 // TODO: Move to Client.
 ProgramVk compute_program;
 
-bool RenderContextVk::init(const AppConfig &app_config) {
+bool RenderContextVk::init(const AppConfig& app_config) {
   // Store config.
   config = app_config;
 
@@ -992,8 +1011,8 @@ bool RenderContextVk::init(const AppConfig &app_config) {
   device = vkb_device;
 
   // Build swapchain and swapchain images.
-  rebuild_swapchain(physical_device, device, surface, app_config.width,
-                    app_config.height);
+  rebuild_swapchain(
+      physical_device, device, surface, app_config.width, app_config.height);
 
   // Get Queues.
   graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
@@ -1094,22 +1113,24 @@ bool RenderContextVk::init(const AppConfig &app_config) {
   // Rendering resources.
   assert(app_config.width * app_config.height != 0 &&
          "Cannot have app dimensions of 0!");
-  final_color_texture.create(VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                                 VK_IMAGE_USAGE_STORAGE_BIT |
-                                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                             {static_cast<uint32_t>(app_config.width),
-                              static_cast<uint32_t>(app_config.height), 1},
-                             VK_FORMAT_R16G16B16A16_SFLOAT,
-                             VK_IMAGE_ASPECT_COLOR_BIT);
+  final_color_texture.create(
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+          VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+      {static_cast<uint32_t>(app_config.width),
+       static_cast<uint32_t>(app_config.height),
+       1},
+      VK_FORMAT_R16G16B16A16_SFLOAT,
+      VK_IMAGE_ASPECT_COLOR_BIT);
 
   final_depth_texture.create(VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                                  VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                                  VK_IMAGE_USAGE_STORAGE_BIT |
                                  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                              {static_cast<uint32_t>(app_config.width),
-                              static_cast<uint32_t>(app_config.height), 1},
-                             VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
+                              static_cast<uint32_t>(app_config.height),
+                              1},
+                             VK_FORMAT_D32_SFLOAT,
+                             VK_IMAGE_ASPECT_DEPTH_BIT);
 
   // TODO: Move to Client.
   // Create compute pipeline.
@@ -1130,7 +1151,7 @@ bool RenderContextVk::init(const AppConfig &app_config) {
 
     // TODO: Let own update.
     // TODO: Delete.
-    uint8_t *white_data = static_cast<uint8_t *>(malloc(256 * 256 * 4));
+    uint8_t* white_data = static_cast<uint8_t*>(malloc(256 * 256 * 4));
     memset(white_data, 0xFF, 256 * 256 * 4);
     tsk::update(white_rgba_th, 0, sizeof(white_data), white_data);
   }
@@ -1197,8 +1218,8 @@ void RenderContextVk::frame() {
   }
 
   // Wait till gpu has finished rendering previous frame.
-  VK_CHECK(vkWaitForFences(device, 1, &render_fence[current_frame], VK_TRUE,
-                           UINT64_MAX));
+  VK_CHECK(vkWaitForFences(
+      device, 1, &render_fence[current_frame], VK_TRUE, UINT64_MAX));
   VK_CHECK(vkResetFences(device, 1, &render_fence[current_frame]));
 
   // Destroy last frame transient resources.
@@ -1218,8 +1239,11 @@ void RenderContextVk::frame() {
   // Request image index to render to and signal swapchain_semaphore.
   uint32_t swapchain_index;
   VkResult sc_acquire_res =
-      vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
-                            swapchain_semaphore[current_frame], VK_NULL_HANDLE,
+      vkAcquireNextImageKHR(device,
+                            swapchain,
+                            UINT64_MAX,
+                            swapchain_semaphore[current_frame],
+                            VK_NULL_HANDLE,
                             &swapchain_index);
   if (sc_acquire_res == VK_ERROR_OUT_OF_DATE_KHR) {
     dirty |= RenderContextDirtyFlags::k_swapchain;
@@ -1240,8 +1264,8 @@ void RenderContextVk::frame() {
   for (int i = 0; i < dirty_buffers_head; i++) {
     BufferHandle bh = dirty_buffers[i];
 
-    BufferVk &buffer = buffer_cache[bh];
-    void *data = buffer_data_ptrs[bh];
+    BufferVk& buffer = buffer_cache[bh];
+    void* data = buffer_data_ptrs[bh];
 
     buffer.update(cmd, 0, buffer.size(), buffer_data_ptrs[bh]);
   }
@@ -1250,19 +1274,23 @@ void RenderContextVk::frame() {
   for (int i = 0; i < dirty_textures_head; i++) {
     TextureHandle th = dirty_textures[i];
 
-    TextureVk &texture = texture_cache[th];
-    void *data = texture_data_ptrs[th];
+    TextureVk& texture = texture_cache[th];
+    void* data = texture_data_ptrs[th];
 
     uint32_t format_size = 4;
-    texture.update(cmd, 0,
+    texture.update(cmd,
+                   0,
                    texture.extent.width * texture.extent.height *
                        texture.extent.depth * format_size,
                    texture_data_ptrs[th]);
   }
   dirty_textures_head = 0;
 
-  transition_image(cmd, final_color_texture.image, VK_IMAGE_ASPECT_COLOR_BIT,
-                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+  transition_image(cmd,
+                   final_color_texture.image,
+                   VK_IMAGE_ASPECT_COLOR_BIT,
+                   VK_IMAGE_LAYOUT_UNDEFINED,
+                   VK_IMAGE_LAYOUT_GENERAL);
 
   // [Commmand]: Clear command.
   VkClearColorValue clear = {{1.0f, 1.0f, 1.0f, 1.0f}};
@@ -1273,8 +1301,12 @@ void RenderContextVk::frame() {
   clear_range.levelCount = VK_REMAINING_MIP_LEVELS;
   clear_range.baseArrayLayer = 0;
   clear_range.layerCount = VK_REMAINING_ARRAY_LAYERS;
-  vkCmdClearColorImage(cmd, final_color_texture.image, VK_IMAGE_LAYOUT_GENERAL,
-                       &clear, 1, &clear_range);
+  vkCmdClearColorImage(cmd,
+                       final_color_texture.image,
+                       VK_IMAGE_LAYOUT_GENERAL,
+                       &clear,
+                       1,
+                       &clear_range);
 
   const uint32_t offsets = 0;
 
@@ -1290,10 +1322,14 @@ void RenderContextVk::frame() {
   /*vkCmdDispatch(cmd, std::ceil(final_color_texture.extent.width / 16.0f),
    * std::ceil(final_color_texture.extent.height / 16.0f), 1); */
 
-  transition_image(cmd, final_color_texture.image, VK_IMAGE_ASPECT_COLOR_BIT,
+  transition_image(cmd,
+                   final_color_texture.image,
+                   VK_IMAGE_ASPECT_COLOR_BIT,
                    VK_IMAGE_LAYOUT_GENERAL,
                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  transition_image(cmd, final_depth_texture.image, VK_IMAGE_ASPECT_DEPTH_BIT,
+  transition_image(cmd,
+                   final_depth_texture.image,
+                   VK_IMAGE_ASPECT_DEPTH_BIT,
                    VK_IMAGE_LAYOUT_UNDEFINED,
                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
@@ -1321,9 +1357,9 @@ void RenderContextVk::frame() {
     VkRenderingInfo rendering_info = {};
     rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     rendering_info.layerCount = 1;
-    rendering_info.renderArea = VkRect2D{{0, 0},
-                                         {final_color_texture.extent.width,
-                                          final_color_texture.extent.height}};
+    rendering_info.renderArea = VkRect2D{
+        {0, 0},
+        {final_color_texture.extent.width, final_color_texture.extent.height}};
     rendering_info.colorAttachmentCount = 1;
     rendering_info.pColorAttachments = &color_attachment_info;
     rendering_info.pDepthAttachment = &depth_attachment_info;
@@ -1332,7 +1368,7 @@ void RenderContextVk::frame() {
 
     // Updated and store descriptor sets.
     for (uint32_t i = 0; i < render_frame->draw_count; i++) {
-      RenderDraw &draw = render_frame->draws[i];
+      RenderDraw& draw = render_frame->draws[i];
       ds_sets_consumable[i] =
           get_descriptor_set(cmd, draw.ph, draw.dhs, draw.dh_count);
     }
@@ -1342,15 +1378,20 @@ void RenderContextVk::frame() {
     ProgramHandle last_ph;
     for (uint32_t draw_count = 0; draw_count < render_frame->draw_count;
          draw_count++) {
-      RenderDraw &draw = render_frame->draws[draw_count];
+      RenderDraw& draw = render_frame->draws[draw_count];
       const ProgramVk program = program_cache[draw.ph];
 
       if (last_ph != draw.ph) {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          get_pipeline(program));
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                program.pipeline_layout, 0, 1,
-                                &ds_sets_consumable[draw_count], 0, &offsets);
+        vkCmdBindPipeline(
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, get_pipeline(program));
+        vkCmdBindDescriptorSets(cmd,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                program.pipeline_layout,
+                                0,
+                                1,
+                                &ds_sets_consumable[draw_count],
+                                0,
+                                &offsets);
 
         VkViewport viewport = {
             0.0f,
@@ -1374,15 +1415,18 @@ void RenderContextVk::frame() {
       memcpy(pc.model, draw.transform_matrix, sizeof(float) * 16);
       memcpy(pc.camera_pos, draw.camera_pos, sizeof(float) * 3);
 
-      const BufferVk &vb = buffer_cache[draw.vbh];
+      const BufferVk& vb = buffer_cache[draw.vbh];
       pc.vbo = vb.address;
 
-      const BufferVk &ib = buffer_cache[draw.ibh];
+      const BufferVk& ib = buffer_cache[draw.ibh];
       vkCmdBindIndexBuffer(cmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-      vkCmdPushConstants(cmd, program.pipeline_layout,
-                         VK_SHADER_STAGE_VERTEX_BIT, 0,
-                         sizeof(DrawPushConstants), &pc);
+      vkCmdPushConstants(cmd,
+                         program.pipeline_layout,
+                         VK_SHADER_STAGE_VERTEX_BIT,
+                         0,
+                         sizeof(DrawPushConstants),
+                         &pc);
       vkCmdDrawIndexed(cmd, ib.size() / sizeof(uint32_t), 1, 0, 0, 0);
 
       draw.clear();
@@ -1396,23 +1440,29 @@ void RenderContextVk::frame() {
     vkCmdEndRendering(cmd);
   }
 
-  transition_image(cmd, final_color_texture.image, VK_IMAGE_ASPECT_COLOR_BIT,
+  transition_image(cmd,
+                   final_color_texture.image,
+                   VK_IMAGE_ASPECT_COLOR_BIT,
                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-  transition_image(cmd, swapchain_images[swapchain_index],
-                   VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+  transition_image(cmd,
+                   swapchain_images[swapchain_index],
+                   VK_IMAGE_ASPECT_COLOR_BIT,
+                   VK_IMAGE_LAYOUT_UNDEFINED,
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
   // [Commmand]: Copy image to image command.
-  copy_image_to_image(cmd, final_color_texture.image,
-                      swapchain_images[swapchain_index],
-                      VK_IMAGE_ASPECT_COLOR_BIT,
-                      {final_color_texture.extent.width,
-                       final_color_texture.extent.height},
-                      swapchain_extent);
+  copy_image_to_image(
+      cmd,
+      final_color_texture.image,
+      swapchain_images[swapchain_index],
+      VK_IMAGE_ASPECT_COLOR_BIT,
+      {final_color_texture.extent.width, final_color_texture.extent.height},
+      swapchain_extent);
 
   // Transition swapchain to presentable.
-  transition_image(cmd, swapchain_images[swapchain_index],
+  transition_image(cmd,
+                   swapchain_images[swapchain_index],
                    VK_IMAGE_ASPECT_COLOR_BIT,
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -1471,7 +1521,7 @@ void RenderContextVk::frame() {
 }
 
 void RenderContextVk::create_texture_2d(TextureHandle handle,
-                                        const TextureInfo &info) {
+                                        const TextureInfo& info) {
   // TODO: Defer to infer usage.
   VkImageUsageFlags image_usage_flags = 0;
   VkImageAspectFlags image_aspect_flags = 0;
@@ -1482,14 +1532,16 @@ void RenderContextVk::create_texture_2d(TextureHandle handle,
 
   texture_cache[handle].create(image_usage_flags,
                                {static_cast<uint32_t>(info.width),
-                                static_cast<uint32_t>(info.height), 1},
-                               VkFormat(info.format), image_aspect_flags);
+                                static_cast<uint32_t>(info.height),
+                                1},
+                               VkFormat(info.format),
+                               image_aspect_flags);
 }
 
 void RenderContextVk::update_texture_2d(TextureHandle th,
                                         uint32_t offset,
                                         uint32_t size,
-                                        void *data) {
+                                        void* data) {
   // TODO: Account for offset and size
   dirty_textures[dirty_textures_head] = th;
   ++dirty_textures_head;
@@ -1503,7 +1555,7 @@ void RenderContextVk::destroy(TextureHandle handle) {
   texture_cache[handle].destroy();
 }
 
-void RenderContextVk::create_shader(ShaderHandle handle, const char *path) {
+void RenderContextVk::create_shader(ShaderHandle handle, const char* path) {
   shader_cache[handle].create(path);
 }
 
@@ -1517,14 +1569,14 @@ void RenderContextVk::create_program(ProgramHandle handle,
                                      ShaderHandle vsh,
                                      ShaderHandle fsh) {
   // TODO: Cache bound check;
-  const ShaderVk &vs = shader_cache[vsh];
-  const ShaderVk &fs = shader_cache[fsh];
+  const ShaderVk& vs = shader_cache[vsh];
+  const ShaderVk& fs = shader_cache[fsh];
 
   program_cache[handle].create(vs, fs);
 }
 
 void RenderContextVk::create_program(ProgramHandle ph, ShaderHandle csh) {
-  const ShaderVk &cs = shader_cache[csh];
+  const ShaderVk& cs = shader_cache[csh];
   program_cache[ph].create(cs);
 }
 
@@ -1536,7 +1588,7 @@ void RenderContextVk::destroy(ProgramHandle ph) {
 void RenderContextVk::create_descriptor(DescriptorHandle handle,
                                         DescriptorType type,
                                         uint16_t rh,
-                                        const char *name) {
+                                        const char* name) {
   assert(strlen(descriptor_set_info_cache[handle].name) == 0 &&
          "Attemping to override descriptor.");
 
@@ -1548,16 +1600,17 @@ void RenderContextVk::create_descriptor(DescriptorHandle handle,
 
 void RenderContextVk::create_uniform_buffer(BufferHandle bh,
                                             uint32_t size,
-                                            void *data) {
-  buffer_cache[bh].create(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                              VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                          size, true);
+                                            void* data) {
+  buffer_cache[bh].create(
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      size,
+      true);
 }
 
 void RenderContextVk::create_vertex_buffer(BufferHandle bh,
                                            VertexLayoutHandle vlh,
                                            uint32_t size,
-                                           void *data) {
+                                           void* data) {
   buffer_cache[bh].create(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                               VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
@@ -1566,16 +1619,16 @@ void RenderContextVk::create_vertex_buffer(BufferHandle bh,
 
 void RenderContextVk::create_index_buffer(BufferHandle bh,
                                           uint32_t size,
-                                          void *data) {
-  buffer_cache[bh].create(VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                              VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                          size);
+                                          void* data) {
+  buffer_cache[bh].create(
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      size);
 }
 
 void RenderContextVk::update_buffer(BufferHandle handle,
                                     uint32_t offset,
                                     uint32_t size,
-                                    void *data) {
+                                    void* data) {
   // TODO: Account for offset and size
   dirty_buffers[dirty_buffers_head] = handle;
   ++dirty_buffers_head;
@@ -1590,7 +1643,7 @@ void RenderContextVk::destroy(BufferHandle bh) {
   buffer_cache[bh].destroy();
 }
 
-void RenderContextVk::submit(Frame *frame) {
+void RenderContextVk::submit(Frame* frame) {
   render_frame = frame;
 }
 

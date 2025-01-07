@@ -349,8 +349,8 @@ struct TUSK_API TextureInfo {
 /// Height of the application window in pixels.
 struct TUSK_API AppConfig {
   char app_name[256];
-  void *nwh;
-  void *ndt;
+  void* nwh;
+  void* ndt;
   int width;
   int height;
 };
@@ -359,7 +359,7 @@ struct TUSK_API AppConfig {
 ///
 /// @param[in] app_config Initialization parameters.
 /// @returns `true` if initialization was successful.
-[[nodiscard]] TUSK_API bool init(const AppConfig &app_config);
+[[nodiscard]] TUSK_API bool init(const AppConfig& app_config);
 
 /// @brief Advance to next frame.
 ///
@@ -401,7 +401,7 @@ TUSK_HANDLE(FrameBufferHandle);
 ///
 /// @param[in] path Shader spriv.
 /// @returns program Reference to shader that was created.
-TUSK_API ShaderHandle create_shader(const char *path);
+TUSK_API ShaderHandle create_shader(const char* path);
 
 TUSK_API void destroy(ShaderHandle sh);
 
@@ -429,9 +429,11 @@ TUSK_API void destroy(ProgramHandle ph);
 /// @param[in] path Descriptor type.
 /// @param[in] path Handle to resource.
 /// @returns program Reference to descriptor created.
-TUSK_API DescriptorHandle create_descriptor(const char *name,
+TUSK_API DescriptorHandle create_descriptor(const char* name,
                                             DescriptorType type,
                                             uint16_t rh);
+
+TUSK_API void destroy(DescriptorHandle sh);
 
 // TODO: Make buffer *data const if not owning.
 /// @brief Creates descriptor.
@@ -442,13 +444,13 @@ TUSK_API DescriptorHandle create_descriptor(const char *name,
 ///
 /// @note If data ownership not passed, it must exist for atleast one frame
 /// (call to tgfx::frame).
-TUSK_API BufferHandle create_uniform_buffer(uint32_t size, void *data);
+TUSK_API BufferHandle create_uniform_buffer(uint32_t size, void* data);
 
 TUSK_API BufferHandle create_vertex_buffer(VertexLayoutHandle vlh,
                                            uint32_t size,
-                                           void *data);
+                                           void* data);
 
-TUSK_API BufferHandle create_index_buffer(uint32_t size, void *data);
+TUSK_API BufferHandle create_index_buffer(uint32_t size, void* data);
 
 /// @brief Updates a buffers data.
 ///
@@ -458,7 +460,7 @@ TUSK_API BufferHandle create_index_buffer(uint32_t size, void *data);
 TUSK_API void update(BufferHandle bh,
                      uint32_t offset,
                      uint32_t size,
-                     void *data);
+                     void* data);
 
 /*/// @brief Updates a buffers data and handles the lifetime of data.*/
 /*///*/
@@ -477,12 +479,12 @@ TUSK_API void destroy(BufferHandle bh);
 ///
 /// @param[in] info The parameters that define the texture.
 /// @returns texure Reference to texture that was created.
-TUSK_API TextureHandle create_texture_2d(const TextureInfo &info);
+TUSK_API TextureHandle create_texture_2d(const TextureInfo& info);
 
 TUSK_API void update(TextureHandle th,
                      uint32_t offset,
                      uint32_t size,
-                     void *data);
+                     void* data);
 
 // @brief Releases the resources a texture.
 //
@@ -494,16 +496,16 @@ TUSK_API void destroy(TextureHandle th);
 /// @param[in] Ptr to view-projection matrix.
 ///
 /// @note The matrix pass must be a float[16] or equivalent.
-TUSK_API void set_view_proj(const void *mtx);
+TUSK_API void set_view_proj(const void* mtx);
 
-TUSK_API void set_camera_pos(const void *camera_pos);
+TUSK_API void set_camera_pos(const void* camera_pos);
 
 /// @brief Binds transform matrix to draw call.
 ///
 /// @param[in] Ptr to transform matrix.
 ///
 /// @note The matrix pass must be a float[16] or equivalent.
-TUSK_API void set_transform(const void *mtx);
+TUSK_API void set_transform(const void* mtx);
 
 TUSK_API void set_vertex_buffer(BufferHandle vbh);
 
@@ -594,7 +596,7 @@ struct RenderDraw {
 
     dh_count = 0;
     // TODO: Change to memset in impl.
-    for (auto &dh : dhs) {
+    for (auto& dh : dhs) {
       dh = TUSK_INVALID_HANDLE;
     }
   };

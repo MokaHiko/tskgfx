@@ -8,10 +8,10 @@
 #include "tskgfx/renderer.h"
 
 #ifdef TUSK_DEBUG
-#define TUSK_GFX_ASSERT(x, msg)                     \
-  if (!(x)) {                                       \
-    spdlog::error("Reached max draws this frame!"); \
-    assert(x);                                      \
+#define TUSK_GFX_ASSERT(x, msg) \
+  if (!(x)) {                   \
+    spdlog::error(msg);         \
+    assert(x);                  \
   }
 #else
 
@@ -22,9 +22,9 @@
 namespace tsk {
 
 static Frame s_frame = {};
-static RenderContextI *s_ctx;
+static RenderContextI* s_ctx;
 
-bool init(const AppConfig &app_config) {
+bool init(const AppConfig& app_config) {
   s_ctx = create_render_context();
 
   return s_ctx->init(app_config);
@@ -41,13 +41,13 @@ void shutdown() {
 }
 
 static TextureHandle th;
-TextureHandle create_texture_2d(const TextureInfo &info) {
+TextureHandle create_texture_2d(const TextureInfo& info) {
   th.idx++;
   s_ctx->create_texture_2d(th, info);
   return th;
 }
 
-void update(TextureHandle th, uint32_t offset, uint32_t size, void *data) {
+void update(TextureHandle th, uint32_t offset, uint32_t size, void* data) {
   s_ctx->update_texture_2d(th, offset, size, data);
 }
 
@@ -56,7 +56,7 @@ void destroy(TextureHandle th) {
 }
 
 static ShaderHandle sh;
-ShaderHandle create_shader(const char *path) {
+ShaderHandle create_shader(const char* path) {
   sh.idx++;
 
   s_ctx->create_shader(sh, path);
@@ -90,7 +90,7 @@ TUSK_API void destroy(ProgramHandle ph) {
 }
 
 static DescriptorHandle dh;
-DescriptorHandle create_descriptor(const char *name,
+DescriptorHandle create_descriptor(const char* name,
                                    DescriptorType type,
                                    uint16_t rh) {
   dh.idx++;
@@ -98,8 +98,10 @@ DescriptorHandle create_descriptor(const char *name,
   return dh;
 }
 
+TUSK_API void destroy(DescriptorHandle dh) {}
+
 static BufferHandle bh;
-BufferHandle create_uniform_buffer(uint32_t size, void *data) {
+BufferHandle create_uniform_buffer(uint32_t size, void* data) {
   bh.idx++;
 
   s_ctx->create_uniform_buffer(bh, size, data);
@@ -110,7 +112,7 @@ BufferHandle create_uniform_buffer(uint32_t size, void *data) {
 
 BufferHandle create_vertex_buffer(VertexLayoutHandle vlh,
                                   uint32_t size,
-                                  void *data) {
+                                  void* data) {
   bh.idx++;
 
   s_ctx->create_vertex_buffer(bh, vlh, size, data);
@@ -119,7 +121,7 @@ BufferHandle create_vertex_buffer(VertexLayoutHandle vlh,
   return bh;
 }
 
-BufferHandle create_index_buffer(uint32_t size, void *data) {
+BufferHandle create_index_buffer(uint32_t size, void* data) {
   bh.idx++;
 
   s_ctx->create_index_buffer(bh, size, data);
@@ -128,7 +130,7 @@ BufferHandle create_index_buffer(uint32_t size, void *data) {
   return bh;
 }
 
-void update(BufferHandle bh, uint32_t offset, uint32_t size, void *data) {
+void update(BufferHandle bh, uint32_t offset, uint32_t size, void* data) {
   TUSK_GFX_ASSERT(bh.idx != k_invalid_handle,
                   "Cannot updated invalid buffer handle!");
   TUSK_GFX_ASSERT(data != nullptr && size > 0,
@@ -140,38 +142,52 @@ void update(BufferHandle bh, uint32_t offset, uint32_t size, void *data) {
 void destroy(BufferHandle bh) {
   TUSK_GFX_ASSERT(bh.idx != k_invalid_handle,
                   "Cannot destroy invalid buffer handle!");
+
   s_ctx->destroy(bh);
 }
 
-void set_view_proj(const void *mtx) {
-  memcpy(s_frame.draws[s_frame.draw_count].viewproj_mtx, mtx,
-         sizeof(float) * 16);
+void set_view_proj(const void* mtx) {
+  memcpy(
+      s_frame.draws[s_frame.draw_count].viewproj_mtx, mtx, sizeof(float) * 16);
 }
 
-TUSK_API void set_camera_pos(const void *camera_pos) {
-  memcpy(s_frame.draws[s_frame.draw_count].camera_pos, camera_pos,
+TUSK_API void set_camera_pos(const void* camera_pos) {
+  memcpy(s_frame.draws[s_frame.draw_count].camera_pos,
+         camera_pos,
          sizeof(float) * 3);
 }
 
-void set_transform(const void *mtx) {
-  memcpy(s_frame.draws[s_frame.draw_count].transform_matrix, mtx,
+void set_transform(const void* mtx) {
+  memcpy(s_frame.draws[s_frame.draw_count].transform_matrix,
+         mtx,
          sizeof(float) * 16);
 }
 
 void set_vertex_buffer(BufferHandle vbh) {
   TUSK_GFX_ASSERT(s_frame.draws[s_frame.draw_count].vbh.idx == k_invalid_handle,
                   "Vertex buffer already set for this draw call!");
+
+  TUSK_GFX_ASSERT(vbh != k_invalid_handle,
+                  "Attemping to set invalid vertex buffer!");
+
   s_frame.draws[s_frame.draw_count].vbh = vbh;
 }
 
 void set_index_buffer(BufferHandle ibh) {
   TUSK_GFX_ASSERT(s_frame.draws[s_frame.draw_count].ibh.idx == k_invalid_handle,
                   "Index buffer already set for this draw call!");
+
+  TUSK_GFX_ASSERT(ibh != k_invalid_handle,
+                  "Attemping to set invalid index buffer!");
+
   s_frame.draws[s_frame.draw_count].ibh = ibh;
 }
 
 void set_descriptor(DescriptorHandle dh) {
-  RenderDraw &draw = s_frame.draws[s_frame.draw_count];
+  TUSK_GFX_ASSERT(dh != k_invalid_handle,
+                  "Attemping to bind invalid descriptor!");
+
+  RenderDraw& draw = s_frame.draws[s_frame.draw_count];
   draw.dhs[draw.dh_count++] = dh;
 }
 
@@ -183,6 +199,7 @@ void submit(ProgramHandle ph) {
 
   TUSK_GFX_ASSERT(s_frame.draw_count < k_max_draws - 1,
                   "Exceeded max draws this frame!");
+
   s_frame.draws[s_frame.draw_count].ph = ph;
   ++s_frame.draw_count;
 }

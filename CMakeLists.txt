@@ -21,12 +21,6 @@ FetchContent_MakeAvailable(VkBootstrap)
 
 find_package(Vulkan REQUIRED)
 
-# Include directories for the dependencies
-include_directories(
-    ${VkBootstrap_SOURCE_DIR}/include
-    third_party
-)
-
 set(SOURCES
     include/tskgfx/tskgfx.h 
     include/tskgfx/renderer.h
@@ -55,7 +49,6 @@ endif()
 # Check for different platforms
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(STATUS "Building on Windows")
-    add_definitions(-DTUSK_WIN32)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(STATUS "Building on Linux")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -67,7 +60,13 @@ endif()
 target_link_libraries(tskgfx PRIVATE tsk vk-bootstrap::vk-bootstrap) 
 target_link_libraries(tskgfx PUBLIC Vulkan::Vulkan)
 
-# Pulbic include directories
+# Internal include directories (private to tskgfx)
+target_include_directories(tskgfx PUBLIC
+    ${VkBootstrap_SOURCE_DIR}/include
+    third_party
+)
+
+# Public include directories (exposed to consumers of tskgfx)
 target_include_directories(tskgfx PUBLIC ./include)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
