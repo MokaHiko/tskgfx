@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0...3.5)
 project(tskgfx VERSION 1.0 LANGUAGES CXX)
 
 # Option to enable or disable building shared libraries
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+set(TSKGFX_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -39,7 +39,7 @@ list(APPEND SOURCES
     src/renderer_vk.cpp
 )
 
-if(BUILD_SHARED_LIBS)
+if(TSKGFX_BUILD_SHARED_LIBS)
     add_library(tskgfx SHARED ${SOURCES})
     add_definitions(-DTUSK_EXPORTS)
 else()

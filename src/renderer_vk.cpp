@@ -16,17 +16,19 @@
 #include <unordered_map>
 
 #ifdef TUSK_DEBUG
-#define VK_CHECK(call)                               \
-  do {                                               \
-    VkResult result = (call);                        \
-    if (result != VK_SUCCESS) {                      \
-      fprintf(stderr,                                \
-              "Vulkan Error: %d in %s at line %d\n", \
-              result,                                \
-              __FILE__,                              \
-              __LINE__);                             \
-      exit(EXIT_FAILURE);                            \
-    }                                                \
+#define VK_CHECK(call)                                      \
+  do {                                                      \
+    VkResult result = (call);                               \
+    if (result != VK_SUCCESS) {                             \
+      fprintf(stderr,                                       \
+              "Vulkan Error: %d in %s at line %d\n",        \
+              result,                                       \
+              __FILE__,                                     \
+              __LINE__);                                    \
+      __debugbreak(); /* Windows */                         \
+      /* __builtin_trap();  Uncomment this for GCC/Clang */ \
+      exit(EXIT_FAILURE);                                   \
+    }                                                       \
   } while (0)
 #else
 #define VK_CHECK(call) (call)
@@ -243,36 +245,36 @@ VkDescriptorPool descriptor_pool;
 std::unordered_map<VkPipelineLayout, VkPipeline> pipeline_cache;
 
 // [Resource] : shader programs.
-ProgramVk program_cache[256] = {};
-ShaderVk shader_cache[256] = {};
+ProgramVk program_cache[512] = {};
+ShaderVk shader_cache[512] = {};
 
 // [Resource] : buffers.
-BufferVk buffer_cache[256] = {};
+BufferVk buffer_cache[512] = {};
 
-BufferHandle dirty_buffers[256] = {};
-void* buffer_data_ptrs[256] = {};
+BufferHandle dirty_buffers[512] = {};
+void* buffer_data_ptrs[512] = {};
 int dirty_buffers_head = 0;
 
-BufferVk transient_buffers[256] = {};
+BufferVk transient_buffers[512] = {};
 int transient_buffer_count = 0;
 
-int transient_buffer_destroy_queue[256] = {};
+int transient_buffer_destroy_queue[512] = {};
 int transient_buffer_destroy_queue_count = 0;
 
 // [Resource] : textures
-TextureVk texture_cache[256] = {};
+TextureVk texture_cache[512] = {};
 
-TextureHandle dirty_textures[256] = {};
-void* texture_data_ptrs[256] = {};
+TextureHandle dirty_textures[512] = {};
+void* texture_data_ptrs[512] = {};
 int dirty_textures_head = 0;
 
 // [Resource] : descriptors.
-DescriptorInfo descriptor_set_info_cache[256] = {};
+DescriptorInfo descriptor_set_info_cache[512] = {};
 std::unordered_map<uint32_t, VkDescriptorSet> ds_set_cache;
 
 // [Resources] : samplers
 // TODO: Turn into sampler desc hash to Sampler.
-VkSampler texture_sampler_cache[256] = {VK_NULL_HANDLE};
+VkSampler texture_sampler_cache[512] = {VK_NULL_HANDLE};
 
 // Default resources.
 tsk::TextureHandle white_rgba_th;
@@ -498,7 +500,6 @@ void TextureVk::update(VkCommandBuffer cmd,
 
   dependency_info.memoryBarrierCount = 1;
   dependency_info.pMemoryBarriers = &buffer_memory_barrier;
-  ;
 
   vkCmdPipelineBarrier2(cmd, &dependency_info);
 }
@@ -1267,7 +1268,9 @@ void RenderContextVk::frame() {
     BufferVk& buffer = buffer_cache[bh];
     void* data = buffer_data_ptrs[bh];
 
-    buffer.update(cmd, 0, buffer.size(), buffer_data_ptrs[bh]);
+    if (data != nullptr) {
+      buffer.update(cmd, 0, buffer.size(), buffer_data_ptrs[bh]);
+    }
   }
   dirty_buffers_head = 0;
 
@@ -1293,7 +1296,7 @@ void RenderContextVk::frame() {
                    VK_IMAGE_LAYOUT_GENERAL);
 
   // [Commmand]: Clear command.
-  VkClearColorValue clear = {{1.0f, 1.0f, 1.0f, 1.0f}};
+  VkClearColorValue clear = {{0.0f, 0.0f, 0.0f, 1.0f}};
 
   VkImageSubresourceRange clear_range = {};
   clear_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1589,7 +1592,7 @@ void RenderContextVk::create_descriptor(DescriptorHandle handle,
                                         DescriptorType type,
                                         uint16_t rh,
                                         const char* name) {
-  assert(strlen(descriptor_set_info_cache[handle].name) == 0 &&
+  assert(!descriptor_set_info_cache[handle].valid() &&
          "Attemping to override descriptor.");
 
   descriptor_set_info_cache[handle].type = type;
